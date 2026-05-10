@@ -33,8 +33,10 @@ import {
   GqlModuleOptions,
 } from '../interfaces';
 import { ResolversExplorerService, ScalarsExplorerService } from '../services';
-import { extend } from '../utils';
+import { FileSystemHelper } from '../schema-builder/helpers/file-system.helper';
+import { extend, getPathForAutoSchemaFile } from '../utils';
 import { transformSchema } from '../utils/transform-schema.util';
+import { GRAPHQL_SDL_FILE_HEADER } from '../graphql.constants';
 import { TypeDefsDecoratorFactory } from './type-defs-decorator.factory';
 
 const DEFAULT_FEDERATION_VERSION: FederationVersion = 1;
@@ -49,6 +51,7 @@ export class GraphQLFederationFactory {
     private readonly scalarsExplorerService: ScalarsExplorerService,
     private readonly gqlSchemaBuilder: GraphQLSchemaBuilder,
     private readonly typeDefsDecoratorFactory: TypeDefsDecoratorFactory,
+    private readonly fileSystemHelper: FileSystemHelper,
   ) {}
 
   async generateSchema<T extends GqlModuleOptions>(
@@ -140,6 +143,14 @@ export class GraphQLFederationFactory {
     );
     if (typeDefsDecorator) {
       typeDefs = typeDefsDecorator.decorate(typeDefs, federationOptions);
+    }
+
+    const autoSchemaFilePath = getPathForAutoSchemaFile(options.autoSchemaFile);
+    if (autoSchemaFilePath) {
+      await this.fileSystemHelper.writeFile(
+        autoSchemaFilePath,
+        GRAPHQL_SDL_FILE_HEADER + typeDefs,
+      );
     }
 
     const resolvers = this.getResolvers(options.resolvers);
@@ -347,7 +358,7 @@ export class GraphQLFederationFactory {
 
       return await this.gqlSchemaBuilder.generateSchema(
         resolvers,
-        autoSchemaFile,
+        false,
         {
           ...buildSchemaOptions,
           directives,
